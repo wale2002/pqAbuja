@@ -21,7 +21,7 @@ const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3000/",
   "http://localhost:8081/",
-  "https://pastwise-solver.vercel.app/",
+  "https://pastwise-solver.vercel.app",
   "http://localhost:5173",
 ];
 

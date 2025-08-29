@@ -1,0 +1,65 @@
+doctype html
+html
+  head
+    meta(name='viewport' content='width=device-width, initial-scale=1.0')
+    meta(http-equiv='Content-Type' content='text/html; charset=UTF-8')
+    title Welcome to PastQuestionsHub
+    style.
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f9f9f9;
+      }
+      .container {
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      }
+      .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white !important;
+        text-decoration: none;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      h1 {
+        color: #2c3e50;
+      }
+      h2 {
+        color: #2c3e50;
+        font-size: 1.5em;
+      }
+      p {
+        margin: 10px 0;
+      }
+      .footer {
+        margin-top: 20px;
+        font-size: 12px;
+        color: #666;
+      }
+  body
+    .container
+      h1 Hello #{username},
+      p Welcome to PastQuestionsHub! Your account has been successfully created.
+      h2 Your Account Details
+      p
+        strong Username: 
+        | #{username}
+      p
+        strong Email: 
+        | #{email}
+      p
+        a.btn(href='https://boondocks.com/login') Log In
+      p Start exploring past questions and uploading your own documents.
+      p If you did not create this account, please contact support at 
+        a(href='mailto:support@boondocks.com') support@boondocks.com
+      .footer
+        p The Boondocks Team
+        p If you didn't request this email, please ignore it.

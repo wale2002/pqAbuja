@@ -51,9 +51,9 @@ app.use("/api/attempts", attemptRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/upload", uploadRoutes);
 // Health check
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ message: "Server is running" });
-});
+// app.get("/api/health", (req, res) => {
+//   res.status(200).json({ message: "Server is running" });
+// });
 
 // Error-handling middleware
 // Handle undefined routes

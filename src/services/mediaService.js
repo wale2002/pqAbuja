@@ -461,18 +461,145 @@
 //   }
 // };
 
-const { Storage } = require("megajs");
+// const { Storage } = require("megajs");
+// const PDFDocument = require("pdfkit");
+// const { v4: uuidv4 } = require("uuid");
+// const MediaDocument = require("../models/MediaDocument");
+// const AppError = require("../utils/AppError");
+
+// const convertImageToPDF = async (buffer, fileName) => {
+//   try {
+//     const doc = new PDFDocument();
+//     const pdfBuffer = [];
+//     doc.on("data", (chunk) => pdfBuffer.push(chunk));
+//     doc.on("end", () => {});
+//     doc.image(buffer, 0, 0, { fit: [595, 842] });
+//     doc.end();
+//     return Buffer.concat(
+//       await new Promise((resolve) => {
+//         doc.on("end", () => resolve(pdfBuffer));
+//       })
+//     );
+//   } catch (error) {
+//     console.error(
+//       "convertImageToPDF: Error converting image to PDF:",
+//       error.message
+//     );
+//     throw new AppError("Failed to convert image to PDF", 400);
+//   }
+// };
+
+// exports.processMedia = async ({
+//   file,
+//   subject,
+//   yearLevel,
+//   course_name,
+//   userId,
+// }) => {
+//   const processId = `processMedia-${Date.now()}`;
+//   console.time(processId);
+
+//   try {
+//     console.time(`megaInit-${processId}`);
+//     const storage = await new Storage({
+//       email: process.env.MEGA_EMAIL,
+//       password: process.env.MEGA_PASSWORD,
+//     }).ready;
+//     console.timeEnd(`megaInit-${processId}`);
+
+//     let uploadBuffer = file.buffer;
+//     let uploadFileName = `${uuidv4()}_${subject}_${yearLevel}.pdf`;
+//     let uploadMimeType = "application/pdf";
+
+//     if (["image/png", "image/jpeg"].includes(file.mimetype)) {
+//       console.time(`convertImageToPDF-${processId}`);
+//       uploadBuffer = await convertImageToPDF(file.buffer, uploadFileName);
+//       console.timeEnd(`convertImageToPDF-${processId}`);
+//     }
+
+//     console.time(`megaUpload-${processId}`);
+//     const uploadStream = storage.upload(
+//       {
+//         name: uploadFileName,
+//         size: uploadBuffer.length,
+//       },
+//       uploadBuffer
+//     );
+//     const upload = await uploadStream.complete;
+//     console.log("megaUpload: Upload result:", upload); // Log full upload object
+//     const fileId = upload.nodeId; // Use nodeId instead of id
+//     if (!fileId) {
+//       throw new AppError("No file ID returned from Mega.nz upload", 500);
+//     }
+//     const fileUrl = `https://mega.nz/file/${fileId}`; // Construct URL using nodeId
+//     console.log("megaUpload: File uploaded to MEGA", {
+//       fileName: uploadFileName,
+//       url: fileUrl,
+//       id: fileId,
+//     });
+//     console.timeEnd(`megaUpload-${processId}`);
+
+//     console.time(`saveMediaDocument-${processId}`);
+//     const mediaDocument = new MediaDocument({
+//       file_name: uploadFileName,
+//       file_type: uploadMimeType,
+//       file_size: uploadBuffer.length,
+//       file_url: fileUrl,
+//       mega_file_id: fileId,
+//       uploaded_by: userId,
+//       subject,
+//       year_level: parseInt(yearLevel),
+//       course_name, // Changed from difficulty
+//       created_at: new Date(),
+//     });
+//     await mediaDocument.save();
+//     console.log("saveMediaDocument: Saved", {
+//       fileName: uploadFileName,
+//       fileUrl,
+//       fileId,
+//     });
+//     console.timeEnd(`saveMediaDocument-${processId}`);
+
+//     console.timeEnd(processId);
+//     return {
+//       media: {
+//         mega_file_id: fileId,
+//         url: fileUrl,
+//         filename: uploadFileName,
+//       },
+//     };
+//   } catch (error) {
+//     console.error("processMedia: Error", error);
+//     throw new AppError(
+//       `Failed to process media: ${error.message}`,
+//       error.statusCode || 500
+//     );
+//   }
+// };
+
+const { v2: cloudinary } = require("cloudinary");
 const PDFDocument = require("pdfkit");
 const { v4: uuidv4 } = require("uuid");
 const MediaDocument = require("../models/MediaDocument");
 const AppError = require("../utils/AppError");
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+console.log("Cloudinary Config:", {
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const convertImageToPDF = async (buffer, fileName) => {
   try {
     const doc = new PDFDocument();
     const pdfBuffer = [];
     doc.on("data", (chunk) => pdfBuffer.push(chunk));
-    doc.on("end", () => {});
     doc.image(buffer, 0, 0, { fit: [595, 842] });
     doc.end();
     return Buffer.concat(
@@ -500,72 +627,107 @@ exports.processMedia = async ({
   console.time(processId);
 
   try {
-    console.time(`megaInit-${processId}`);
-    const storage = await new Storage({
-      email: process.env.MEGA_EMAIL,
-      password: process.env.MEGA_PASSWORD,
-    }).ready;
-    console.timeEnd(`megaInit-${processId}`);
-
     let uploadBuffer = file.buffer;
-    let uploadFileName = `${uuidv4()}_${subject}_${yearLevel}.pdf`;
+    // Sanitize subject to remove special characters
+    let uploadFileName = `${uuidv4()}_${subject.replace(
+      /[^a-zA-Z0-9]/g,
+      "_"
+    )}_${yearLevel}.pdf`;
     let uploadMimeType = "application/pdf";
 
+    // Convert images to PDF if necessary
     if (["image/png", "image/jpeg"].includes(file.mimetype)) {
       console.time(`convertImageToPDF-${processId}`);
       uploadBuffer = await convertImageToPDF(file.buffer, uploadFileName);
       console.timeEnd(`convertImageToPDF-${processId}`);
     }
 
-    console.time(`megaUpload-${processId}`);
-    const uploadStream = storage.upload(
-      {
-        name: uploadFileName,
-        size: uploadBuffer.length,
-      },
-      uploadBuffer
+    // Generate signature for signed upload
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const signatureParams = {
+      public_id: uploadFileName,
+      timestamp: timestamp,
+    };
+    const signature = cloudinary.utils.api_sign_request(
+      signatureParams,
+      process.env.CLOUDINARY_API_SECRET
     );
-    const upload = await uploadStream.complete;
-    console.log("megaUpload: Upload result:", upload); // Log full upload object
-    const fileId = upload.nodeId; // Use nodeId instead of id
-    if (!fileId) {
-      throw new AppError("No file ID returned from Mega.nz upload", 500);
-    }
-    const fileUrl = `https://mega.nz/file/${fileId}`; // Construct URL using nodeId
-    console.log("megaUpload: File uploaded to MEGA", {
-      fileName: uploadFileName,
-      url: fileUrl,
-      id: fileId,
-    });
-    console.timeEnd(`megaUpload-${processId}`);
 
+    // Log signature parameters for debugging
+    console.log("Signature params:", signatureParams);
+    console.log("Generated signature:", signature);
+
+    // Upload to Cloudinary with signed parameters
+    console.time(`cloudinaryUpload-${processId}`);
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: "raw",
+          public_id: uploadFileName,
+          timestamp: timestamp,
+          api_key: process.env.CLOUDINARY_API_KEY,
+          signature: signature,
+        },
+        (error, result) => {
+          if (error) {
+            console.error("Cloudinary upload error:", error);
+            return reject(
+              new AppError(
+                `Failed to upload to Cloudinary: ${error.message}`,
+                500
+              )
+            );
+          }
+          resolve(result);
+        }
+      );
+      uploadStream.end(uploadBuffer);
+    });
+
+    const { public_id, secure_url } = uploadResult;
+    if (!public_id || !secure_url) {
+      throw new AppError(
+        "No public_id or secure_url returned from Cloudinary",
+        500
+      );
+    }
+
+    console.log("cloudinaryUpload: File uploaded to Cloudinary", {
+      fileName: uploadFileName,
+      url: secure_url,
+      public_id,
+    });
+    console.timeEnd(`cloudinaryUpload-${processId}`);
+
+    // Save to MongoDB
     console.time(`saveMediaDocument-${processId}`);
     const mediaDocument = new MediaDocument({
       file_name: uploadFileName,
       file_type: uploadMimeType,
       file_size: uploadBuffer.length,
-      file_url: fileUrl,
-      mega_file_id: fileId,
+      file_url: secure_url,
+      cloudinary_public_id: public_id,
       uploaded_by: userId,
       subject,
       year_level: parseInt(yearLevel),
-      course_name, // Changed from difficulty
+      course_name,
       created_at: new Date(),
     });
     await mediaDocument.save();
     console.log("saveMediaDocument: Saved", {
       fileName: uploadFileName,
-      fileUrl,
-      fileId,
+      fileUrl: secure_url,
+      public_id,
     });
     console.timeEnd(`saveMediaDocument-${processId}`);
 
     console.timeEnd(processId);
     return {
       media: {
-        mega_file_id: fileId,
-        url: fileUrl,
+        cloudinary_public_id: public_id,
+        url: secure_url,
         filename: uploadFileName,
+        original_filename: file.originalname,
       },
     };
   } catch (error) {

@@ -7,7 +7,7 @@ exports.signup = async (req, res, next) => {
     const user = await authService.signup(username, email, password);
     // Send welcome email
     const emailInstance = new Email({ username, email });
-    await emailInstance.sendWelcome();
+    // await emailInstance.sendWelcome();
     res.status(201).json({ user, message: "Account created successfully" });
   } catch (error) {
     next(error);

@@ -21,7 +21,9 @@ const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3000/",
   "http://localhost:8081/",
+  "https://pq-abja1.vercel.app",
   "https://pastwise-solver.vercel.app",
+
   "http://localhost:5173",
 ];
 
@@ -73,5 +75,5 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 9000;
 app.listen(PORT, () => console.log(`🚀 Server running on the port ${PORT}`));
